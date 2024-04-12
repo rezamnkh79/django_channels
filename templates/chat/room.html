@@ -1,0 +1,194 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Room</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 0;
+        }
+
+        #chat-log {
+            width: 100%;
+            height: 800px;
+            margin-bottom: 10px;
+            padding: 5px;
+            overflow-y: scroll;
+            background-color: #fff;
+        }
+
+        .message-box {
+            background-color: #eff7cf;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 10px;
+        }
+
+        #chat-message-input {
+            width: 80%;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        #chat-message-submit {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+
+        #telegram-image {
+            border: 2px solid #9c27b0; /* Purple border */
+            border-radius: 8px; /* Rounded corners */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow effect */
+            max-width: 150px; /* Maximum width for the image */
+            max-height: 150px; /* Maximum height for the image */
+        }
+
+        #notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px; /* Adjust as needed */
+            background-color: #16ec0e;
+            color: #333;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            transition: visibility 0s linear 11s; /* 11 seconds duration */
+        }
+    </style>
+    <link rel="stylesheet prefetch"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.2/css/font-awesome.min.css"/>
+</head>
+<body>
+<div id="chat-box">
+    <div id="chat-log"></div>
+    <input id="chat-message-input" type="text">
+    <input id="chat-message-submit" type="button" value="Send">
+    <i class="fa fa-paperclip attachment" aria-hidden="true" onclick="document.getElementById('inp').click();"></i>
+    <div id="notification"></div>
+</div>
+<input id="inp" type='file' style="display:none">
+<p id="b64"></p>
+{{ room_name|json_script:"room-name" }}
+
+<script src="{% static 'reconnecting_websocket.js' %}"></script>
+<script>
+    const roomName = JSON.parse(document.getElementById('room-name').textContent);
+
+    const chatSocket = new ReconnectingWebSocket(
+        'ws://'
+        + window.location.host
+        + '/ws/chat/'
+        + roomName
+        + '/'
+    );
+
+    const notifSocket = new WebSocket(
+        'ws://'
+        + window.location.host
+        + '/ws/chat/'
+        + 'listener'
+        + '/'
+    );
+    const notificationElement = document.getElementById('notification');
+
+    // Function to display notifications
+    function showNotification(message) {
+        // Update the inner text of the notification element with the message
+        notificationElement.className = 'notification';
+        notificationElement.innerText = message;
+        document.body.appendChild(notificationElement);
+
+        setTimeout(() => {
+            notificationElement.style.visibility = 'hidden'; // Hide the notification after 11 seconds
+        }, 11000);
+    }
+
+    notifSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        for (const member_id of data['members']) {
+            if (member_id === {{user.id}}) {
+                if (data['sender_id'] !== {{ user.id }}) {
+                    showNotification("Got a new message in channel " + data['channel_name']);
+
+                }
+            }
+
+        }
+    }
+
+    chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        if (data.message.includes('data:image/png;base64')) {
+            const chatLog = document.createElement('li');
+            var imgTag = document.createElement('img');
+            imgTag.src = data['message'];
+            imgTag.id = 'telegram-image'
+            chatLog.appendChild(imgTag);
+            document.querySelector('#chat-log').appendChild(chatLog);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        } else {
+            const chatLog = document.querySelector('#chat-log');
+            const messageBox = document.createElement('div');
+            messageBox.className = 'message-box';
+            messageBox.textContent = data.message + ' - ' + data.creation_time;
+            chatLog.appendChild(messageBox);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+
+    };
+
+    chatSocket.onclose = function (e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function (e) {
+        if (e.key === 'Enter') {
+            document.querySelector('#chat-message-submit').click();
+        }
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function (e) {
+        const messageInputDom = document.querySelector('#chat-message-input');
+        const message = messageInputDom.value.trim();
+
+        if (message !== '') {
+            chatSocket.send(JSON.stringify({
+                'message': message,
+                'user_id': {{ user.id }}
+            }));
+            messageInputDom.value = '';
+        }
+    };
+
+    function readFile() {
+
+        if (this.files && this.files[0]) {
+
+            var FR = new FileReader();
+
+            FR.addEventListener("load", function (e) {
+
+                chatSocket.send(JSON.stringify({
+                    'message': e.target.result,
+                    'command': 'img',
+                    'user_id': {{ user.id }}
+                }));
+            });
+
+            FR.readAsDataURL(this.files[0]);
+        }
+    }
+
+    document.getElementById("inp").addEventListener("change", readFile);
+</script>
+</body>
+</html>

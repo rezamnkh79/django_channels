@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Rooms</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f1f1f1;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #room-name-input {
+            padding: 10px;
+            width: 70%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px;
+            font-size: 16px;
+        }
+
+        #room-name-submit {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #room-name-submit:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style-type: none; /* Remove default list styling */
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        a {
+            text-decoration: none; /* Remove underline from links */
+            color: #333; /* Set text color for links */
+        }
+
+        a:hover {
+            color: #666; /* Change text color on hover */
+        }
+    </style>
+</head>
+<body>
+<div>
+    <h2>What chat room would you like to enter?</h2>
+    <input id="room-name-input" type="text" placeholder="Enter room name" size="50"><br>
+    <input id="room-name-submit" type="button" value="Enter">
+</div>
+<div>
+    <ul>
+        {% for channel in channels %}
+            <li>
+                <a href="http://localhost:8000/chat/{{ channel.channel_name }}">{{ channel.channel_name }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+<script>
+    document.querySelector('#room-name-input').focus();
+    document.querySelector('#room-name-input').onkeyup = function (e) {
+        if (e.key === 'Enter') {  // enter, return
+            document.querySelector('#room-name-submit').click();
+        }
+    };
+
+    document.querySelector('#room-name-submit').onclick = function (e) {
+        var roomName = document.querySelector('#room-name-input').value;
+        window.location.pathname = '/chat/' + roomName + '/';
+    };
+</script>
+</body>
+</html>
